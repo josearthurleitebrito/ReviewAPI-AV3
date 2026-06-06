@@ -1,0 +1,11 @@
+# Railway configuration — Worker service
+# IMPORTANTE: No Railway UI, defina o campo "Root Directory" como "/" (raiz do repo)
+# e "Dockerfile Path" como "worker/Dockerfile"
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "worker/Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
