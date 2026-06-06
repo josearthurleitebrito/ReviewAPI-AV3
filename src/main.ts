@@ -14,7 +14,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ZodValidationPipe(z.any()));
 
   // Inicia o servidor na porta definida no .env (padrão 3000)
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`Aplicação rodando em: http://localhost:${process.env.PORT ?? 3000}/graphql`);
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
+  console.log(`Aplicação rodando em: http://0.0.0.0:${process.env.PORT ?? 3000}/graphql`);
 }
 bootstrap();
