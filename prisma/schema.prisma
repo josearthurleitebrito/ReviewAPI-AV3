@@ -1,0 +1,80 @@
+// Schema Prisma — define os modelos do banco de dados PostgreSQL
+
+generator client {
+  provider      = "prisma-client-js"
+  // Targets necessários para rodar no Docker (Linux Alpine) e localmente (native)
+  binaryTargets = ["native", "linux-musl", "linux-arm64-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  // URL lida da variável de ambiente DATABASE_URL do .env
+  url      = env("DATABASE_URL")
+}
+
+// Usuários da plataforma
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String   // Armazenado com hash bcrypt
+  createdAt DateTime @default(now())
+  reviews   Review[] // Relação 1:N com avaliações
+}
+
+// Filmes sincronizados via TMDB API
+model Filme {
+  id         Int      @id @default(autoincrement())
+  titulo     String
+  sinopse    String?
+  externalId String   @unique // ID do TMDB (ex: "tmdb_12345")
+  reviews    Review[]
+}
+
+// Séries sincronizadas via TMDB API
+model Serie {
+  id         Int      @id @default(autoincrement())
+  titulo     String
+  sinopse    String?
+  externalId String   @unique // ID do TMDB TV (ex: "tmdb_tv_67890")
+  reviews    Review[]
+}
+
+// Livros sincronizados via Open Library API
+model Livro {
+  id         Int      @id @default(autoincrement())
+  titulo     String
+  autor      String?
+  externalId String   @unique // ID do Open Library (ex: "ol_OL1234W")
+  reviews    Review[]
+}
+
+// Jogos sincronizados via RAWG API
+model Jogo {
+  id             Int      @id @default(autoincrement())
+  titulo         String
+  desenvolvedora String?
+  externalId     String   @unique // ID do RAWG (ex: "rawg_3498")
+  reviews        Review[]
+}
+
+// Avaliações — cada review pertence a um usuário e a exatamente uma mídia
+model Review {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  filmeId   Int?     // Apenas um destes campos será preenchido por review
+  serieId   Int?
+  livroId   Int?
+  jogoId    Int?
+  score     Int      // Nota de 1 a 5
+  content   String   // Texto da avaliação
+  isDeleted Boolean  @default(false) // Soft-delete: não remove fisicamente do banco
+  createdAt DateTime @default(now())
+
+  // Relações com as entidades correspondentes
+  user  User   @relation(fields: [userId], references: [id])
+  filme Filme? @relation(fields: [filmeId], references: [id])
+  serie Serie? @relation(fields: [serieId], references: [id])
+  livro Livro? @relation(fields: [livroId], references: [id])
+  jogo  Jogo?  @relation(fields: [jogoId], references: [id])
+}

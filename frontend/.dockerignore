@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+*.local
+
+# Arquivos compilados pelo tsc — Docker só precisa dos .tsx originais
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+!src/vite-env.d.ts
+vite.config.js
+vite.config.js.map
+vite.config.d.ts

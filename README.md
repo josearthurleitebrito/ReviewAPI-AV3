@@ -1,98 +1,548 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# AV3 Reviews — Projeto Final Técnicas de Integração de Sistemas
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> Plataforma full-stack de avaliação de mídias (filmes, séries, livros e jogos).  
+> O usuário se cadastra, importa catálogos de APIs externas para o banco local e publica avaliações com nota de 1 a 5 estrelas.  
+> Ao publicar, recebe um e-mail de confirmação com sugestões de títulos similares geradas por IA.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Disciplina:** Técnicas de Integração de Sistemas — Unifor  
+**Curso:** Tecnologia da Informação
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Visão Geral da Arquitetura
 
-## Project setup
-
-```bash
-$ npm install
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                          Docker Compose                              │
+│                                                                      │
+│  ┌──────────┐    ┌─────────────────┐    ┌────────────────────────┐  │
+│  │  nginx   │───►│  NestJS + GQL   │───►│      PostgreSQL        │  │
+│  │  :80     │    │  :3000          │    │      (Prisma ORM)      │  │
+│  │ React SPA│    │  Apollo Server  │    └────────────────────────┘  │
+│  └──────────┘    └────────┬────────┘                                │
+│                           │                                          │
+│                  ┌────────▼────────┐    ┌────────────────────────┐  │
+│                  │    RabbitMQ     │───►│   Worker NestJS        │  │
+│                  │  :5672/:15672   │    │   Gemini IA + Resend   │  │
+│                  └─────────────────┘    │   + PDF                │  │
+│                                         └────────────────────────┘  │
+│                                                                      │
+│                  ┌──────────────────────────────────────────────┐   │
+│                  │              APIs Externas                    │   │
+│                  │  TMDB · RAWG · Open Library · Gemini · Resend│   │
+│                  └──────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-## Compile and run the project
+---
+
+## Stack Tecnológica
+
+| Camada | Tecnologia |
+|---|---|
+| Backend | NestJS 11 + GraphQL (Apollo Server v5, code-first) |
+| ORM / Banco | Prisma + PostgreSQL 15 |
+| Mensageria | RabbitMQ 3 |
+| Autenticação | JWT (passport-jwt) + bcrypt + Google OAuth real |
+| Validação | Zod (pipe global no NestJS) |
+| Frontend | React 19 + Vite + Apollo Client |
+| Login Social | @react-oauth/google (botão Google real) |
+| Servidor SPA | nginx (proxy reverso para o backend) |
+| IA de Sugestões | Google Gemini 2.5 Flash |
+| E-mail | Resend API |
+| PDF | pdfkit |
+| Infraestrutura | Docker + Docker Compose (5 containers) |
+
+---
+
+## Como Rodar
+
+### Pré-requisito
+
+Docker Desktop instalado e rodando.
+
+### 1. Configure as variáveis de ambiente
+
+Copie o arquivo de exemplo e preencha as chaves:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cp .env.example .env
 ```
 
-## Run tests
+> Veja a seção **[Obtendo as Chaves de API](#obtendo-as-chaves-de-api)** logo abaixo para saber onde conseguir cada uma.  
+> O projeto funciona **sem nenhuma chave configurada** — usará dados mockados para catálogo, modo console para e-mails e sugestões genéricas no lugar da IA.
+
+### 2. Suba todos os containers
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+docker compose up --build
 ```
 
-## Deployment
+Isso constrói e inicia 5 containers:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+| Container | Porta local | Descrição |
+|---|---|---|
+| `review-postgres` | `5433` | Banco de dados PostgreSQL |
+| `review-rabbitmq` | `5672` e `15672` | Broker de mensagens |
+| `review-backend` | `3000` | API GraphQL (NestJS) |
+| `review-worker` | *(sem porta)* | Worker: IA + e-mail + PDF |
+| `review-frontend` | `80` | Interface React servida pelo nginx |
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+> A porta local do Postgres é `5433` (não a padrão `5432`) para não conflitar com instalações locais.
+
+### URLs após subir
+
+| Serviço | URL |
+|---|---|
+| Frontend (app) | http://localhost |
+| GraphQL Playground | http://localhost:3000/graphql |
+| RabbitMQ Management | http://localhost:15672 — user: `guest` / pass: `guest` |
+
+---
+
+## Obtendo as Chaves de API
+
+Todas as chaves são **opcionais**. O sistema possui fallback automático quando não configuradas.
+
+### `TMDB_API_KEY` — Filmes e Séries
+
+Usado para buscar filmes e séries em tendência via The Movie Database.
+
+1. Crie uma conta em **themoviedb.org**
+2. Vá em **Settings → API → Create → Developer**
+3. Preencha o formulário (pode informar "uso pessoal/acadêmico")
+4. Copie a **API Key (v3 auth)**
+
+Gratuita, sem limite significativo para uso em desenvolvimento.
+
+**Sem essa chave:** carrega 10 filmes e 10 séries mockados (Inception, The Matrix, Breaking Bad, etc.)
+
+---
+
+### `RAWG_API_KEY` — Jogos
+
+Usado para buscar os jogos mais bem avaliados via RAWG.
+
+1. Crie uma conta em **rawg.io/apidocs**
+2. Clique em **"Get API Key"**
+3. A chave é gerada imediatamente no painel
+
+Gratuita até 20.000 requisições/mês.
+
+**Sem essa chave:** carrega 10 jogos mockados (The Witcher 3, Elden Ring, Minecraft, etc.)
+
+---
+
+### `RESEND_API_KEY` — Envio de E-mails
+
+Usado pelo worker para enviar um e-mail de confirmação ao usuário após ele publicar uma avaliação.
+
+1. Crie uma conta gratuita em **resend.com**
+2. Vá em **API Keys → Create API Key**
+3. Copie a chave gerada (começa com `re_`)
+
+Plano gratuito: 3.000 e-mails/mês, 100/dia. Não requer cartão de crédito.
+
+**Sem essa chave:** o worker imprime o conteúdo do e-mail no console do container, sem enviá-lo.
+
+---
+
+### `GEMINI_API_KEY` — Sugestões de IA
+
+Usado pelo worker para gerar recomendações de títulos similares ao que foi avaliado.
+
+1. Acesse **aistudio.google.com**
+2. Clique em **"Get API key"**
+3. Copie a chave (começa com `AIza` ou `AQ`)
+
+Gratuito, sem cartão de crédito. Modelo utilizado: `gemini-2.5-flash`.
+
+**Sem essa chave:** exibe uma mensagem genérica sugerindo que o usuário pesquise títulos similares.
+
+---
+
+### `VITE_GOOGLE_CLIENT_ID` — Login com Google
+
+Usado para exibir o botão real de "Entrar com Google" na tela de login.
+
+1. Acesse **console.cloud.google.com**
+2. Crie ou selecione um projeto
+3. Vá em **APIs e Serviços → Credenciais → Criar credenciais → ID do cliente OAuth 2.0**
+4. Tipo de aplicativo: **Aplicativo da Web**
+5. Origens JavaScript autorizadas: `http://localhost`
+6. Copie o **ID do cliente** (termina com `.apps.googleusercontent.com`)
+
+> Esta variável deve estar no arquivo `.env` da **raiz** do projeto (`ReviewAPI/.env`), pois é lida pelo Docker Compose durante o build do frontend.
+
+**Sem essa chave:** o botão "Entrar com Google" não aparece; o login continua funcionando normalmente via e-mail e senha.
+
+---
+
+### `JWT_SECRET` — Segredo do Token
+
+Não requer cadastro em nenhum serviço. Gere uma string aleatória segura:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Cole o resultado no campo `JWT_SECRET` do seu `.env`.
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## Fluxo Completo de Uso
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```
+Usuário acessa http://localhost
+        │
+        ▼
+1. CADASTRO / LOGIN
+   Preenche nome, e-mail e senha, ou clica em "Entrar com Google"
+   Backend valida com Zod, faz hash com bcrypt e retorna um JWT
+   Token salvo no localStorage do browser
+        │
+        ▼
+2. DASHBOARD (catálogo inicialmente vazio)
+   Seleciona aba: Filmes | Séries | Livros | Jogos
+        │
+        ▼
+3. IMPORTAR CATÁLOGO  →  mutation syncCatalog
+   Backend busca dados em APIs externas (ou usa mocks embutidos)
+   Salva no PostgreSQL via upsert (sem duplicatas)
+   Catálogo aparece como cards na tela
+        │
+        ▼
+4. EXPLORAR MÍDIA
+   Clica "Ver Detalhes" em qualquer card
+        │
+        ▼
+5. PÁGINA DE DETALHE
+   Vê título, sinopse/autor/desenvolvedora
+   Vê nota média e avaliações de outros usuários
+   Seleciona estrelas + escreve comentário → mutation createReview
+        │                │
+        │                └──► backend publica evento no RabbitMQ
+        │                          │
+        │                          ▼
+        │                     Worker processa:
+        │                     1. Chama Gemini API → 4 sugestões personalizadas
+        │                     2. Envia e-mail via Resend com as sugestões
+        │                     3. Gera PDF com resumo da review
+        ▼
+6. PERFIL  →  query myReviews
+   Lista todas as suas avaliações com link para a mídia
+   Pode excluir qualquer uma → mutation deleteReview (soft-delete)
+```
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Autenticação
 
-## Stay in touch
+### Cadastro
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Campos: **Nome**, **E-mail**, **Senha** (mínimo 6 caracteres).
 
-## License
+```graphql
+mutation {
+  register(input: {
+    name: "José Arthur"
+    email: "jose@exemplo.com"
+    password: "senha123"
+  }) {
+    accessToken
+    user { id name email }
+  }
+}
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Login com senha
+
+```graphql
+mutation {
+  login(input: {
+    email: "jose@exemplo.com"
+    password: "senha123"
+  }) {
+    accessToken
+    user { id name email }
+  }
+}
+```
+
+### Login com Google (real)
+
+O frontend exibe um botão oficial do Google via `@react-oauth/google`. Ao clicar, o Google retorna um `id_token` real que é enviado ao backend. O backend valida o token na API do Google (`oauth2.googleapis.com/tokeninfo`), extrai o e-mail e nome, registra o usuário automaticamente caso não exista, e retorna o JWT.
+
+```graphql
+mutation {
+  loginOAuth(input: {
+    token: "<id_token_real_do_google>"
+    provider: "google"
+  }) {
+    accessToken
+    user { id name email }
+  }
+}
+```
+
+> O botão só aparece se `VITE_GOOGLE_CLIENT_ID` estiver configurado no `.env`.
+
+---
+
+## Catálogo e Dados Mockados
+
+O banco começa **vazio**. É preciso clicar em "Importar" no dashboard para popular cada tipo de mídia.
+
+### Como o `syncCatalog` funciona
+
+| Tipo | API real | Variável de ambiente | Mocks embutidos (10 itens) |
+|---|---|---|---|
+| Filmes | TMDB trending movies | `TMDB_API_KEY` | Inception, The Matrix, Interstellar, Pulp Fiction, The Dark Knight, Spirited Away, Parasite, Whiplash, Gladiator, Spider-Man: Into the Spider-Verse |
+| Séries | TMDB trending TV | `TMDB_API_KEY` | Breaking Bad, Game of Thrones, Stranger Things, Chernobyl, The Office, Rick and Morty, Black Mirror, Better Call Saul, Sherlock, The Last of Us |
+| Livros | Open Library `/subjects/programming` | *(sem chave)* | Clean Code, The Hobbit, Harry Potter, 1984, Dune, Sapiens, Refactoring, Atomic Habits, Designing Data-Intensive Applications, Crime and Punishment |
+| Jogos | RAWG API | `RAWG_API_KEY` | The Witcher 3, Elden Ring, Minecraft, GTA V, Red Dead Redemption 2, Zelda: BotW, Portal 2, Hades, Cyberpunk 2077, God of War |
+
+O sync usa `upsert` pelo campo `externalId` — clicar em "Importar" múltiplas vezes é seguro, nunca duplica registros.
+
+### Exemplo via Playground
+
+```graphql
+# Adicione o header: Authorization: Bearer <seu_token>
+mutation {
+  syncCatalog(mediaType: "filme") {
+    success
+    count
+    message
+  }
+}
+```
+
+Valores válidos para `mediaType`: `"filme"` · `"serie"` · `"livro"` · `"jogo"`
+
+---
+
+## API GraphQL — Referência
+
+### Uso autenticado no Playground
+
+No Playground (`http://localhost:3000/graphql`), clique em **"HTTP HEADERS"** (canto inferior) e cole:
+
+```json
+{
+  "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsIn..."
+}
+```
+
+### Avaliações
+
+**Criar avaliação** (requer JWT — vincule a exatamente um tipo de mídia):
+
+```graphql
+mutation {
+  createReview(input: {
+    score: 5
+    content: "Obra-prima do cinema moderno."
+    filmeId: 1        # ou serieId, livroId, jogoId
+  }) {
+    id score content createdAt
+  }
+}
+```
+
+**Avaliações de uma mídia** (público):
+
+```graphql
+query {
+  reviewsByMedia(filmeId: 1) {
+    id score content createdAt
+    user { name email }
+  }
+}
+```
+
+**Minhas avaliações** (requer JWT):
+
+```graphql
+query {
+  myReviews {
+    id score content createdAt
+    filme { id titulo }
+    serie { id titulo }
+    livro { id titulo }
+    jogo  { id titulo }
+  }
+}
+```
+
+**Excluir avaliação** (requer JWT — soft-delete, marca `isDeleted: true` no banco):
+
+```graphql
+mutation {
+  deleteReview(reviewId: 1) { id }
+}
+```
+
+---
+
+## Worker RabbitMQ
+
+O worker é uma aplicação NestJS separada que roda dentro do Docker Compose como container independente (`review-worker`). Ele não expõe porta HTTP — apenas consome eventos da fila RabbitMQ.
+
+### O que ele faz
+
+Quando uma review é criada, o backend publica um evento `review_created` com os dados da avaliação. O worker consome esse evento e:
+
+1. **Sugestões de IA (Gemini)** — chama o Google Gemini 2.5 Flash para gerar 4 títulos similares famosos, com motivo em uma frase curta cada. Se a chave não estiver configurada, usa texto genérico.
+2. **E-mail (Resend)** — envia confirmação ao usuário com nota, conteúdo da review e as sugestões da IA. Se a chave não estiver configurada, imprime no console.
+3. **PDF (pdfkit)** — gera um arquivo de relatório em PDF com o resumo da review e a sugestão.
+
+### Build e execução fora do Docker (desenvolvimento)
+
+```bash
+# Compilar apenas o worker
+npm run build:worker
+
+# Rodar em produção
+npm run start:worker:prod
+
+# Rodar em modo desenvolvimento (ts-node)
+npm run start:worker
+```
+
+> O worker precisa que o RabbitMQ esteja acessível. Com o Docker Compose rodando, ele está disponível em `amqp://guest:guest@localhost:5672`.
+
+---
+
+## Banco de Dados
+
+### Modelos Prisma
+
+```
+User    (id, name, email, password, createdAt)
+  └── Review[]
+
+Filme   (id, titulo, sinopse?, externalId único)
+Serie   (id, titulo, sinopse?, externalId único)
+Livro   (id, titulo, autor?,   externalId único)
+Jogo    (id, titulo, desenvolvedora?, externalId único)
+  └── Review[] cada um
+
+Review  (id, userId, filmeId?, serieId?, livroId?, jogoId?,
+         score, content, isDeleted, createdAt)
+```
+
+### Inicialização automática
+
+Ao subir o container, o `CMD` executa:
+
+```bash
+npx prisma db push --accept-data-loss && node dist/main
+```
+
+O `prisma db push` sincroniza o `schema.prisma` com o PostgreSQL na primeira execução, criando todas as tabelas sem migrations.
+
+---
+
+## Arquitetura de Rede no Docker
+
+```
+Browser (porta 80)
+       │
+       ▼
+   nginx (frontend container)
+       │
+       ├── GET /  →  serve index.html (React SPA)
+       ├── GET /dashboard, /detail/*, /profile  →  serve index.html
+       │
+       └── POST /graphql  ─────────────────────────────────────────────►
+                                                                         │
+                                                            NestJS API (:3000)
+                                                                         │
+                                                    ┌────────────────────┼──────────────────┐
+                                                    ▼                    ▼                  ▼
+                                               PostgreSQL            RabbitMQ          APIs Externas
+                                            (review-postgres)   (review-rabbitmq)    (TMDB, RAWG, OL)
+                                                                         │
+                                                                         ▼
+                                                                   Worker NestJS
+                                                                (review-worker)
+                                                                Gemini · Resend · PDF
+```
+
+O frontend usa sempre o path relativo `/graphql`. O nginx intercepta e encaminha para `http://backend:3000/graphql` internamente — o browser nunca precisa conhecer a porta `3000`.
+
+---
+
+## Estrutura de Pastas
+
+```
+ReviewAPI/                            ← raiz do repositório git
+├── .env.example                      ← template de variáveis de ambiente
+├── .gitignore
+├── .dockerignore
+├── .prettierrc
+├── Dockerfile                        ← build do backend (NestJS)
+├── docker-compose.yml                ← orquestração dos 5 containers
+├── eslint.config.mjs
+├── nest-cli.json
+├── package.json
+├── tsconfig.json
+├── tsconfig.build.json               ← rootDir: ./src (exclui worker/)
+│
+├── prisma/
+│   └── schema.prisma                 ← modelos User, Filme, Serie, Livro, Jogo, Review
+│
+├── src/                              ← código-fonte do backend
+│   ├── main.ts                       ← bootstrap + CORS + ZodValidationPipe global
+│   ├── app.module.ts                 ← registro de todos os módulos
+│   ├── Auth/                         ← JWT strategy, guards, resolver de login/registro/OAuth
+│   │   └── dto/                      ← RegisterInput, LoginInput, LoginOAuthInput
+│   ├── Catalog/                      ← mutation syncCatalog + integrações com APIs externas
+│   ├── Movie/                        ← resolver, service, type de Filmes
+│   ├── Serie/                        ← resolver, service, type de Séries
+│   ├── Book/                         ← resolver, service, type de Livros
+│   ├── Game/                         ← resolver, service, type de Jogos
+│   ├── Review/                       ← resolver, service, type + relações
+│   │   └── dto/                      ← CreateReviewInput, UpdateReviewInput
+│   ├── User/                         ← entidade User + PrismaUserRepository
+│   ├── Shared/                       ← value objects: Email, Password
+│   ├── Enter/                        ← RegisterUseCase (lógica de domínio)
+│   ├── Interface/                    ← interfaces: IUserRepository, IReviewService, etc.
+│   ├── prisma/                       ← PrismaService + PrismaModule
+│   ├── rabbitmq/                     ← RabbitMQModule (publisher de eventos)
+│   └── validation/                   ← ZodValidationPipe + schemas de validação
+│
+├── worker/                           ← worker NestJS (consumidor RabbitMQ)
+│   ├── Dockerfile                    ← build independente do worker
+│   ├── tsconfig.json                 ← build independente → ../dist-worker
+│   ├── shared/
+│   │   └── queue.constants.ts        ← tipos e nomes de filas compartilhados
+│   └── src/
+│       ├── main.ts                   ← bootstrap do worker (sem servidor HTTP)
+│       ├── worker.module.ts
+│       ├── consumers/
+│       │   └── review.consumer.ts    ← ouve fila review_created
+│       └── services/
+│           ├── ai.service.ts         ← sugestões via Google Gemini 2.5 Flash
+│           ├── email.service.ts      ← e-mail via Resend API (fallback: console)
+│           └── pdf.service.ts        ← relatório em PDF (pdfkit)
+│
+└── frontend/                         ← interface React + Vite
+    ├── Dockerfile                    ← build do frontend + nginx (ARG para VITE_*)
+    ├── .dockerignore                 ← exclui arquivos .js compilados do contexto Docker
+    ├── nginx.conf                    ← proxy /graphql → backend:3000
+    ├── index.html
+    ├── vite.config.ts
+    ├── tsconfig*.json
+    └── src/
+        ├── main.tsx                  ← GoogleOAuthProvider + Apollo + React root
+        ├── App.tsx                   ← rotas + ProtectedRoute + PublicRoute
+        ├── graphql/
+        │   ├── client.ts             ← Apollo Client (uri relativa /graphql em prod)
+        │   └── queries.ts            ← todas as queries e mutations GraphQL
+        └── pages/
+            ├── Login.tsx             ← cadastro / login / botão Google real
+            ├── Dashboard.tsx         ← catálogo com abas e botão Importar
+            ├── Detail.tsx            ← detalhes da mídia + reviews + formulário
+            └── Profile.tsx           ← minhas reviews + excluir
+```
