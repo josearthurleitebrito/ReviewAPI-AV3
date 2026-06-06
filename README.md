@@ -1,5 +1,28 @@
 # AV3 Reviews — Projeto Final Técnicas de Integração de Sistemas
 
+## Acesso à Demonstração
+
+> Clique nos links abaixo para acessar os serviços diretamente — nenhuma instalação necessária.
+
+| Serviço                      | Link                                                                                                     |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Frontend (aplicação)         | [frontend-production-6745.up.railway.app](https://frontend-production-6745.up.railway.app)               |
+| Backend — GraphQL Playground | [backend-production-1fd9.up.railway.app/graphql](https://backend-production-1fd9.up.railway.app/graphql) |
+| RabbitMQ — Painel CloudAMQP  | [Acessar painel](http://api.cloudamqp.com/console/d9cf25a7-14f8-46d5-9301-6999feffc09d/details)          |
+
+---
+
+## Integrantes do Time
+
+| Nome                    | Matrícula |
+| ----------------------- | --------- |
+| Guilherme Almeida       | 2410535   |
+| José Arthur Leite Brito | 2315760   |
+| Levi Mauricio Dantas    | 2520373   |
+| Mateus Coimbra Braga    | 2410366   |
+
+---
+
 > Plataforma full-stack de avaliação de mídias (filmes, séries, livros e jogos).  
 > O usuário se cadastra, importa catálogos de APIs externas para o banco local e publica avaliações com nota de 1 a 5 estrelas.  
 > Ao publicar, recebe um e-mail de confirmação com sugestões de títulos similares geradas por IA.
@@ -38,20 +61,20 @@
 
 ## Stack Tecnológica
 
-| Camada | Tecnologia |
-|---|---|
-| Backend | NestJS 11 + GraphQL (Apollo Server v5, code-first) |
-| ORM / Banco | Prisma + PostgreSQL 15 |
-| Mensageria | RabbitMQ 3 |
-| Autenticação | JWT (passport-jwt) + bcrypt + Google OAuth real |
-| Validação | Zod (pipe global no NestJS) |
-| Frontend | React 19 + Vite + Apollo Client |
-| Login Social | @react-oauth/google (botão Google real) |
-| Servidor SPA | nginx (proxy reverso para o backend) |
-| IA de Sugestões | Google Gemini 2.5 Flash |
-| E-mail | Resend API |
-| PDF | pdfkit |
-| Infraestrutura | Docker + Docker Compose (5 containers) |
+| Camada          | Tecnologia                                         |
+| --------------- | -------------------------------------------------- |
+| Backend         | NestJS 11 + GraphQL (Apollo Server v5, code-first) |
+| ORM / Banco     | Prisma + PostgreSQL 15                             |
+| Mensageria      | RabbitMQ 3                                         |
+| Autenticação    | JWT (passport-jwt) + bcrypt + Google OAuth real    |
+| Validação       | Zod (pipe global no NestJS)                        |
+| Frontend        | React 19 + Vite + Apollo Client                    |
+| Login Social    | @react-oauth/google (botão Google real)            |
+| Servidor SPA    | nginx (proxy reverso para o backend)               |
+| IA de Sugestões | Google Gemini 2.5 Flash                            |
+| E-mail          | Resend API                                         |
+| PDF             | pdfkit                                             |
+| Infraestrutura  | Docker + Docker Compose (5 containers)             |
 
 ---
 
@@ -80,23 +103,140 @@ docker compose up --build
 
 Isso constrói e inicia 5 containers:
 
-| Container | Porta local | Descrição |
-|---|---|---|
-| `review-postgres` | `5433` | Banco de dados PostgreSQL |
-| `review-rabbitmq` | `5672` e `15672` | Broker de mensagens |
-| `review-backend` | `3000` | API GraphQL (NestJS) |
-| `review-worker` | *(sem porta)* | Worker: IA + e-mail + PDF |
-| `review-frontend` | `80` | Interface React servida pelo nginx |
+| Container         | Porta local      | Descrição                          |
+| ----------------- | ---------------- | ---------------------------------- |
+| `review-postgres` | `5433`           | Banco de dados PostgreSQL          |
+| `review-rabbitmq` | `5672` e `15672` | Broker de mensagens                |
+| `review-backend`  | `3000`           | API GraphQL (NestJS)               |
+| `review-worker`   | _(sem porta)_    | Worker: IA + e-mail + PDF          |
+| `review-frontend` | `80`             | Interface React servida pelo nginx |
 
 > A porta local do Postgres é `5433` (não a padrão `5432`) para não conflitar com instalações locais.
 
 ### URLs após subir
 
-| Serviço | URL |
-|---|---|
-| Frontend (app) | http://localhost |
-| GraphQL Playground | http://localhost:3000/graphql |
+| Serviço             | URL                                                    |
+| ------------------- | ------------------------------------------------------ |
+| Frontend (app)      | http://localhost                                       |
+| GraphQL Playground  | http://localhost:3000/graphql                          |
 | RabbitMQ Management | http://localhost:15672 — user: `guest` / pass: `guest` |
+
+---
+
+## Deploy no Railway
+
+O projeto pode ser implantado no Railway com 4 serviços: **Backend**, **Worker**, **Frontend** e **PostgreSQL** (gerenciado pelo Railway). O RabbitMQ é fornecido pelo CloudAMQP (plano gratuito externo).
+
+### Pré-requisitos
+
+- Conta no [Railway](https://railway.app)
+- Repositório **próprio** no GitHub (Railway requer que você seja dono — faça um fork se necessário)
+- Conta no [CloudAMQP](https://cloudamqp.com) para o RabbitMQ (plano Lemur — gratuito)
+
+---
+
+### 1. Crie o projeto e adicione o PostgreSQL
+
+No Railway, crie um novo projeto e adicione um serviço **PostgreSQL**. Railway fornece a `DATABASE_URL` automaticamente.
+
+---
+
+### 2. Configure o CloudAMQP (RabbitMQ externo)
+
+1. Crie uma conta em **cloudamqp.com** e crie uma instância no plano **Lemur (Free)**
+2. Copie a **AMQP URL** (formato `amqps://user:password@host/vhost`)
+3. Essa URL será usada como `RABBITMQ_URL` no Backend e no Worker
+
+---
+
+### 3. Adicione o serviço Backend
+
+- Conecte ao repositório GitHub
+- **Dockerfile Path:** `Dockerfile`
+- **Root Directory:** _(vazio / raiz)_
+- Configure as variáveis de ambiente:
+
+| Variável                | Valor                                                                    |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `DATABASE_URL`          | URL do PostgreSQL Railway (disponível nas variáveis do serviço Postgres) |
+| `RABBITMQ_URL`          | AMQP URL do CloudAMQP                                                    |
+| `JWT_SECRET`            | String aleatória segura                                                  |
+| `VITE_GOOGLE_CLIENT_ID` | Client ID do Google OAuth                                                |
+| `TMDB_API_KEY`          | Chave da API TMDB                                                        |
+| `RAWG_API_KEY`          | Chave da API RAWG                                                        |
+
+Após o primeiro deploy, o Railway irá gerar um domínio público para o Backend (ex: `https://meu-projeto-backend.up.railway.app`). Guarde essa URL para o próximo passo.
+
+---
+
+### 4. Adicione o serviço Worker
+
+- Conecte ao mesmo repositório GitHub
+- **Dockerfile Path:** `worker/Dockerfile` ← **obrigatório, senão o Railway usa o Dockerfile errado**
+- **Root Directory:** _(vazio / raiz)_
+- Configure as mesmas variáveis do Backend **mais**:
+
+| Variável         | Valor                       |
+| ---------------- | --------------------------- |
+| `DATABASE_URL`   | Mesma do Backend            |
+| `RABBITMQ_URL`   | Mesma AMQP URL do CloudAMQP |
+| `JWT_SECRET`     | Mesmo valor do Backend      |
+| `GEMINI_API_KEY` | Chave da API Gemini         |
+| `RESEND_API_KEY` | Chave da API Resend         |
+
+> **Atenção:** Se o campo Dockerfile Path estiver bloqueado na UI, vá em **Settings → Build → Config File Path** e informe `worker/railway.toml`. O arquivo já está configurado corretamente no repositório.
+
+> **Atenção Resend:** no plano gratuito, e-mails só são entregues para o endereço cadastrado na sua conta Resend. Para testes, crie uma review com o mesmo e-mail da conta Resend.
+
+---
+
+### 5. Adicione o serviço Frontend
+
+- Conecte ao mesmo repositório GitHub
+- **Root Directory:** `frontend`
+- **Dockerfile Path:** `Dockerfile`
+- Configure as variáveis de ambiente:
+
+| Variável                | Valor                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `VITE_GOOGLE_CLIENT_ID` | Mesmo Client ID do Google OAuth                                                                |
+| `VITE_API_URL`          | URL pública do Backend + `/graphql` (ex: `https://meu-projeto-backend.up.railway.app/graphql`) |
+
+> **Por que `VITE_API_URL`?** No Railway não existe a rede Docker interna — o nginx não consegue resolver o hostname `backend`. Com `VITE_API_URL` configurado, o Apollo Client chama o backend diretamente pela URL pública, ignorando o proxy nginx.
+
+Após o deploy, Railway gera um domínio para o Frontend. Copie essa URL.
+
+---
+
+### 6. Configure o Google OAuth para o Railway
+
+No [Google Cloud Console](https://console.cloud.google.com):
+
+1. Vá em **APIs e Serviços → Credenciais** e edite o Client ID OAuth
+2. Em **Origens JavaScript autorizadas**, adicione a URL do Frontend Railway (ex: `https://meu-projeto-frontend.up.railway.app`)
+3. Salve
+
+---
+
+### 7. Sincronize o catálogo
+
+Após todos os serviços estarem Online, faça login no Frontend e clique em **Importar** em cada aba (Filmes, Séries, Livros, Jogos) para popular o banco com dados reais das APIs externas.
+
+---
+
+### Variáveis resumidas por serviço
+
+| Variável                | Backend | Worker | Frontend |
+| ----------------------- | :-----: | :----: | :------: |
+| `DATABASE_URL`          |   ✅    |   ✅   |          |
+| `RABBITMQ_URL`          |   ✅    |   ✅   |          |
+| `JWT_SECRET`            |   ✅    |   ✅   |          |
+| `TMDB_API_KEY`          |   ✅    |        |          |
+| `RAWG_API_KEY`          |   ✅    |        |          |
+| `GEMINI_API_KEY`        |         |   ✅   |          |
+| `RESEND_API_KEY`        |         |   ✅   |          |
+| `VITE_GOOGLE_CLIENT_ID` |   ✅    |        |    ✅    |
+| `VITE_API_URL`          |         |        |    ✅    |
 
 ---
 
@@ -244,13 +384,19 @@ Campos: **Nome**, **E-mail**, **Senha** (mínimo 6 caracteres).
 
 ```graphql
 mutation {
-  register(input: {
-    name: "José Arthur"
-    email: "jose@exemplo.com"
-    password: "senha123"
-  }) {
+  register(
+    input: {
+      name: "José Arthur"
+      email: "jose@exemplo.com"
+      password: "senha123"
+    }
+  ) {
     accessToken
-    user { id name email }
+    user {
+      id
+      name
+      email
+    }
   }
 }
 ```
@@ -259,12 +405,13 @@ mutation {
 
 ```graphql
 mutation {
-  login(input: {
-    email: "jose@exemplo.com"
-    password: "senha123"
-  }) {
+  login(input: { email: "jose@exemplo.com", password: "senha123" }) {
     accessToken
-    user { id name email }
+    user {
+      id
+      name
+      email
+    }
   }
 }
 ```
@@ -275,12 +422,15 @@ O frontend exibe um botão oficial do Google via `@react-oauth/google`. Ao clica
 
 ```graphql
 mutation {
-  loginOAuth(input: {
-    token: "<id_token_real_do_google>"
-    provider: "google"
-  }) {
+  loginOAuth(
+    input: { token: "<id_token_real_do_google>", provider: "google" }
+  ) {
     accessToken
-    user { id name email }
+    user {
+      id
+      name
+      email
+    }
   }
 }
 ```
@@ -295,12 +445,12 @@ O banco começa **vazio**. É preciso clicar em "Importar" no dashboard para pop
 
 ### Como o `syncCatalog` funciona
 
-| Tipo | API real | Variável de ambiente | Mocks embutidos (10 itens) |
-|---|---|---|---|
-| Filmes | TMDB trending movies | `TMDB_API_KEY` | Inception, The Matrix, Interstellar, Pulp Fiction, The Dark Knight, Spirited Away, Parasite, Whiplash, Gladiator, Spider-Man: Into the Spider-Verse |
-| Séries | TMDB trending TV | `TMDB_API_KEY` | Breaking Bad, Game of Thrones, Stranger Things, Chernobyl, The Office, Rick and Morty, Black Mirror, Better Call Saul, Sherlock, The Last of Us |
-| Livros | Open Library `/subjects/programming` | *(sem chave)* | Clean Code, The Hobbit, Harry Potter, 1984, Dune, Sapiens, Refactoring, Atomic Habits, Designing Data-Intensive Applications, Crime and Punishment |
-| Jogos | RAWG API | `RAWG_API_KEY` | The Witcher 3, Elden Ring, Minecraft, GTA V, Red Dead Redemption 2, Zelda: BotW, Portal 2, Hades, Cyberpunk 2077, God of War |
+| Tipo   | API real                             | Variável de ambiente | Mocks embutidos (10 itens)                                                                                                                          |
+| ------ | ------------------------------------ | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Filmes | TMDB trending movies                 | `TMDB_API_KEY`       | Inception, The Matrix, Interstellar, Pulp Fiction, The Dark Knight, Spirited Away, Parasite, Whiplash, Gladiator, Spider-Man: Into the Spider-Verse |
+| Séries | TMDB trending TV                     | `TMDB_API_KEY`       | Breaking Bad, Game of Thrones, Stranger Things, Chernobyl, The Office, Rick and Morty, Black Mirror, Better Call Saul, Sherlock, The Last of Us     |
+| Livros | Open Library `/subjects/programming` | _(sem chave)_        | Clean Code, The Hobbit, Harry Potter, 1984, Dune, Sapiens, Refactoring, Atomic Habits, Designing Data-Intensive Applications, Crime and Punishment  |
+| Jogos  | RAWG API                             | `RAWG_API_KEY`       | The Witcher 3, Elden Ring, Minecraft, GTA V, Red Dead Redemption 2, Zelda: BotW, Portal 2, Hades, Cyberpunk 2077, God of War                        |
 
 O sync usa `upsert` pelo campo `externalId` — clicar em "Importar" múltiplas vezes é seguro, nunca duplica registros.
 
@@ -339,12 +489,17 @@ No Playground (`http://localhost:3000/graphql`), clique em **"HTTP HEADERS"** (c
 
 ```graphql
 mutation {
-  createReview(input: {
-    score: 5
-    content: "Obra-prima do cinema moderno."
-    filmeId: 1        # ou serieId, livroId, jogoId
-  }) {
-    id score content createdAt
+  createReview(
+    input: {
+      score: 5
+      content: "Obra-prima do cinema moderno."
+      filmeId: 1 # ou serieId, livroId, jogoId
+    }
+  ) {
+    id
+    score
+    content
+    createdAt
   }
 }
 ```
@@ -354,8 +509,14 @@ mutation {
 ```graphql
 query {
   reviewsByMedia(filmeId: 1) {
-    id score content createdAt
-    user { name email }
+    id
+    score
+    content
+    createdAt
+    user {
+      name
+      email
+    }
   }
 }
 ```
@@ -365,11 +526,26 @@ query {
 ```graphql
 query {
   myReviews {
-    id score content createdAt
-    filme { id titulo }
-    serie { id titulo }
-    livro { id titulo }
-    jogo  { id titulo }
+    id
+    score
+    content
+    createdAt
+    filme {
+      id
+      titulo
+    }
+    serie {
+      id
+      titulo
+    }
+    livro {
+      id
+      titulo
+    }
+    jogo {
+      id
+      titulo
+    }
   }
 }
 ```
@@ -378,7 +554,9 @@ query {
 
 ```graphql
 mutation {
-  deleteReview(reviewId: 1) { id }
+  deleteReview(reviewId: 1) {
+    id
+  }
 }
 ```
 
